@@ -597,6 +597,7 @@
             const playerCard = document.createElement('div');
             playerCard.className = 'player-card';
             playerCard.id = cardId;
+            playerCard.dataset.teamSide = playerData.teamSide || '';
             playerCard.innerHTML = `
                 <div class="flex justify-between items-start mb-4">
                     <h3 class="text-lg font-bold text-slate-700">Igrač ${playerCounter}</h3>
@@ -798,6 +799,8 @@
             const margin = parseFloat($('#bookmaker-margin').value) || 0;
             const teamWinOdd = parseFloat($('#team-win-odd').value) || 0;
             const correlationFactor = parseFloat($('#correlation-factor').value) || 1.0;
+            const eventId = eventSelect.value;
+            const event = apiEvents.find(e => e.id == eventId);
 
             const createBet = (playerName, m2, m3, o, amf = true) => {
                 const finalOddValue = amf ? applyMarginToOdd(o, margin) : o;
@@ -831,14 +834,14 @@
                     createBet(playerName, 'daje', 'prvi gol', baseOdds['daje-gol'] * 2.6);
                     createBet(playerName, 'daje', 'zadnji gol', baseOdds['daje-gol'] * 2.6);
                     
-                    if (teamWinOdd > 1) {
-                        const probPlayerScores = oddToProb(baseOdds['daje-gol']);
-                        const probTeamWins = oddToProb(teamWinOdd);
-                        const probPlayerScoresInWin = probPlayerScores * correlationFactor;
-                        const cappedProbPlayerScoresInWin = Math.min(probPlayerScoresInWin, 0.99);
-                        const combinedProb = cappedProbPlayerScoresInWin * probTeamWins;
-                        const oddScoresAndWins = probToOdd(combinedProb);
-                        createBet(playerName, 'daje gol', 'i tim pobedjuje', oddScoresAndWins, true);
+                    if (event && event.lambdaHome && event.lambdaAway) {
+                        const teamSide = card.dataset.teamSide;
+                        const teamLambda = teamSide === 'home' ? event.lambdaHome : event.lambdaAway;
+                        if (teamLambda > 0) {
+                            const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
+                            const probScoresAndWins = playerLambda / teamLambda * oddToProb(teamWinOdd);
+                            createBet(playerName, 'daje gol', 'i tim pobedjuje', probToOdd(probScoresAndWins), true);
+                        }
                     }
                 }
                 if (baseOdds['sutevi-okvir-1'] > 0) {
@@ -947,6 +950,7 @@
             const p_11plus_sot = probOver(sotLambda, 10);
             const p_penal = oddToProb(penaltyOdd);
             const p_red = oddToProb(redCardOdd);
+            const lambdaPerMin = goalsLambda / 90;
 
             // Calculations
             createSpecialBet('Oba tima 2+ kartona', '', p_2plus_cards_team * p_2plus_cards_team);
@@ -965,8 +969,8 @@
             createSpecialBet('15+ kornera', 'i GG', p_15plus_corners * p_gg);
             createSpecialBet('15+ kornera', 'i 3+ golova', p_15plus_corners * p_3plus_goals);
             createSpecialBet('3+ kornera', 'u svakom pol.', p_3plus_corners_half);
-            createSpecialBet('Gol u nadoknadi', '2. pol.', 0.25);
-            createSpecialBet('Gol u nadoknadi', '1. pol.', 0.15);
+            createSpecialBet('Gol u nadoknadi', '2. pol.', 1 - Math.exp(-lambdaPerMin * 6));
+            createSpecialBet('Gol u nadoknadi', '1. pol.', 1 - Math.exp(-lambdaPerMin * 3));
             createSpecialBet('Sudija gleda VAR', '', 0.4);
             createSpecialBet('Izmena postize gol', '', 0.2);
             createSpecialBet('Precka ili stativa', 'na mecu', 0.5);
@@ -1229,6 +1233,7 @@
                 option.value = player.name;
                 option.textContent = `${player.name} (${player.goalscorerOdd})`;
                 option.dataset.odd = player.goalscorerOdd;
+                option.dataset.teamSide = player.teamSide;
                 apiPlayerSelect.appendChild(option);
             });
             apiPlayerAdder.classList.remove('hidden');
@@ -1317,6 +1322,25 @@
             }
             return null;
         };
+        
+        const calculateTeamLambdas = (event) => {
+            const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
+            const totalGoalsLambda = findMarketLine('soccer.total_goals', 'period=ft');
+
+            if (!matchOddsMarket || !totalGoalsLambda) {
+                return { lambdaHome: null, lambdaAway: null };
+            }
+
+            const homeProb = oddToProb(matchOddsMarket.find(s => s.outcome === 'home')?.price);
+            const awayProb = oddToProb(matchOddsMarket.find(s => s.outcome === 'away')?.price);
+
+            if (!homeProb || !awayProb) return { lambdaHome: null, lambdaAway: null };
+
+            const lambdaHome = totalGoalsLambda * (homeProb / (homeProb + awayProb));
+            const lambdaAway = totalGoalsLambda * (awayProb / (homeProb + awayProb));
+
+            return { lambdaHome, lambdaAway };
+        };
 
         const populateMatchData = (eventId) => {
             resetForm();
@@ -1351,7 +1375,8 @@
                  goalscorerSelections.forEach(selection => {
                     if (selection.status === 'SELECTION_ENABLED') {
                         const playerName = parsePlayerNameFromOutcome(selection.outcome);
-                        availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: 'all' });
+                        const playerInfo = Object.values(event.players || {}).find(p => p.name === playerName);
+                        availableApiPlayers.push({ name: playerName, goalscorerOdd: selection.price, teamSide: playerInfo ? playerInfo.team.toLowerCase() : 'unknown' });
                     }
                  });
             }
@@ -1391,11 +1416,15 @@
             setLambdaInput($('#special-corners-lambda'), cornersLambda, 10.5);
             setLambdaInput($('#special-cards-lambda'), cardsLambda, 4.5);
             
+            const { lambdaHome, lambdaAway } = calculateTeamLambdas(event);
+            event.lambdaHome = lambdaHome;
+            event.lambdaAway = lambdaAway;
+
             const totalCorners = parseFloat($('#special-corners-lambda').value);
-            const { lambdaHome, lambdaAway } = calculateTeamCornerLambdas(event, totalCorners);
+            const { lambdaHome: cornerLambdaHome, lambdaAway: cornerLambdaAway } = calculateTeamCornerLambdas(event, totalCorners);
             
-            setLambdaInput($('#special-corners-lambda-home'), lambdaHome, totalCorners * 0.55);
-            setLambdaInput($('#special-corners-lambda-away'), lambdaAway, totalCorners * 0.45);
+            setLambdaInput($('#special-corners-lambda-home'), cornerLambdaHome, totalCorners * 0.55);
+            setLambdaInput($('#special-corners-lambda-away'), cornerLambdaAway, totalCorners * 0.45);
 
             // Populate API data display
             let formattedApiText = '';
@@ -1489,12 +1518,13 @@
             if (!selectedOption || !selectedOption.value) return;
             const playerName = selectedOption.value;
             const goalscorerOdd = selectedOption.dataset.odd;
+            const teamSide = selectedOption.dataset.teamSide;
             const existingPlayers = Array.from(document.querySelectorAll('.player-name-search')).map(input => input.value);
             if (existingPlayers.includes(playerName)) {
                 alert(`Igrač ${playerName} je već dodat.`);
                 return;
             }
-            const playerCard = addPlayer({ name: playerName, goalscorerOdd });
+            const playerCard = addPlayer({ name: playerName, goalscorerOdd, teamSide });
             playersContainer.appendChild(playerCard);
             const fbrefPlayer = allFbrefStats.find(p => p.Player.toLowerCase() === playerName.toLowerCase());
             if (fbrefPlayer) {
