@@ -1300,7 +1300,7 @@
             return { lambdaHome: totalLambdaCorners * 0.55, lambdaAway: totalLambdaCorners * 0.45 };
         };
 
-        const findMarketLine = (market, submarket) => {
+        const findMarketLine = (event, market, submarket) => {
             const selections = event.markets?.[market]?.submarkets?.[submarket]?.selections;
             if (!selections) return null;
 
@@ -1344,7 +1344,7 @@
         
         const calculateTeamLambdas = (event) => {
             const matchOddsMarket = event.markets?.['soccer.match_odds']?.submarkets?.['period=ft']?.selections;
-            const totalGoalsLambda = findMarketLine('soccer.total_goals', 'period=ft');
+            const totalGoalsLambda = findMarketLine(event, 'soccer.total_goals', 'period=ft');
 
             if (!matchOddsMarket || !totalGoalsLambda) {
                 return { lambdaHome: null, lambdaAway: null };
@@ -1452,9 +1452,9 @@
                 ggInput.readOnly = false;
             }
 
-            const goalsLambda = findMarketLine('soccer.total_goals', 'period=ft');
-            const cornersLambda = findMarketLine('soccer.total_corners', 'period=ft_corners');
-            const cardsLambda = findMarketLine('soccer.totals.cards', 'period=ft');
+            const goalsLambda = findMarketLine(event, 'soccer.total_goals', 'period=ft');
+            const cornersLambda = findMarketLine(event, 'soccer.total_corners', 'period=ft_corners');
+            const cardsLambda = findMarketLine(event, 'soccer.totals.cards', 'period=ft');
 
             const over2_5_goals = event.markets?.['soccer.total_goals']?.submarkets?.['period=ft']?.selections.find(s => s.params === 'total=2.5' && s.outcome === 'over');
             if (over2_5_goals) event.prob_3plus_goals = oddToProb(over2_5_goals.price);
