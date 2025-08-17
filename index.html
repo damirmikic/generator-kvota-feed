@@ -857,7 +857,7 @@
                         
                         if (teamLambda > 0 && teamWinOdd > 1) {
                             const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
-                            const probScoresAndWins = (playerLambda / teamLambda) * oddToProb(teamWinOdd);
+                            const probScoresAndWins = (1 / (playerLambda / teamLambda));
                             const teamName = teamSide === 'home' ? event.home.name : event.away.name;
                             createBet(playerName, 'daje gol i', `${teamName} pobedjuje`, probToOdd(probScoresAndWins), true);
                         }
