@@ -792,7 +792,7 @@
             if (oddType === 'pasovi-lambda') {
                 oddInput.value = statValue.toFixed(2);
             } else if (oddType === 'zuti-karton') {
-                const prob_1_plus_fouls = 1 - poissonProbability(statValue, 0);
+                const prob_1_plus_fouls = 1 - poissonPMF(statValue, 0);
                 const odd_1_plus_fouls = probToOdd(prob_1_plus_fouls);
                 if (odd_1_plus_fouls) {
                     let rawOdd = odd_1_plus_fouls * 3.2;
@@ -802,7 +802,7 @@
                     oddInput.value = '';
                 }
             } else {
-                const probability = 1 - poissonProbability(statValue, 0);
+                const probability = 1 - poissonPMF(statValue, 0);
                 let rawOdd = probToOdd(probability);
                 let finalOdd = applyMarginToOdd(rawOdd, margin);
                 oddInput.value = formatOdd(finalOdd);
@@ -839,14 +839,14 @@
                 
                 if (baseOdds['daje-gol'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
-                    const p = [poissonProbability(lambda, 0), poissonProbability(lambda, 1), poissonProbability(lambda, 2)];
+                    const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
                     createBet(playerName, 'daje', 'gol', baseOdds['daje-gol'], false);
-                    createBet(playerName, 'daje gol', 'do 10. min', probToOdd(1 - poissonProbability(lambda / 9, 0)));
+                    createBet(playerName, 'daje gol', 'do 10. min', probToOdd(1 - poissonPMF(lambda / 9, 0)));
                     createBet(playerName, 'daje', '2+ golova', probToOdd(1 - p[0] - p[1]));
                     createBet(playerName, 'daje', '3+ golova', probToOdd(1 - p[0] - p[1] - p[2]));
-                    createBet(playerName, 'daje gol', 'u 1. poluvremenu', probToOdd(1 - poissonProbability(lambda * 0.44, 0)));
-                    createBet(playerName, 'daje gol', 'u 2. poluvremenu', probToOdd(1 - poissonProbability(lambda * 0.56, 0)));
-                    createBet(playerName, 'daje gol', 'u oba pol.', probToOdd((1 - poissonProbability(lambda * 0.44, 0)) * (1 - poissonProbability(lambda * 0.56, 0))));
+                    createBet(playerName, 'daje gol', 'u 1. poluvremenu', probToOdd(1 - poissonPMF(lambda * 0.44, 0)));
+                    createBet(playerName, 'daje gol', 'u 2. poluvremenu', probToOdd(1 - poissonPMF(lambda * 0.56, 0)));
+                    createBet(playerName, 'daje gol', 'u oba pol.', probToOdd((1 - poissonPMF(lambda * 0.44, 0)) * (1 - poissonPMF(lambda * 0.56, 0))));
                     createBet(playerName, 'daje', 'prvi gol', baseOdds['daje-gol'] * 2.6);
                     createBet(playerName, 'daje', 'zadnji gol', baseOdds['daje-gol'] * 2.6);
                     
@@ -865,14 +865,14 @@
                 }
                 if (baseOdds['sutevi-okvir-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['sutevi-okvir-1']));
-                    const p = [poissonProbability(lambda, 0), poissonProbability(lambda, 1), poissonProbability(lambda, 2)];
+                    const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
                     createBet(playerName, 'ukupno suteva', 'u okvir gola 1+', baseOdds['sutevi-okvir-1'], false);
                     createBet(playerName, 'ukupno suteva', 'u okvir gola 2+', probToOdd(1 - p[0] - p[1]));
                     createBet(playerName, 'ukupno suteva', 'u okvir gola 3+', probToOdd(1 - p[0] - p[1] - p[2]));
                 }
                 if (baseOdds['faulovi-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-1']));
-                    const p = [poissonProbability(lambda, 0), poissonProbability(lambda, 1), poissonProbability(lambda, 2)];
+                    const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
                     createBet(playerName, 'ukupno nacinjenih', 'faulova 1+', baseOdds['faulovi-1'], false);
                     createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]));
                     createBet(playerName, 'ukupno nacinjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]));
@@ -882,7 +882,7 @@
                 }
                 if (baseOdds['faulovi-iznudjeni-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-iznudjeni-1']));
-                    const p = [poissonProbability(lambda, 0), poissonProbability(lambda, 1), poissonProbability(lambda, 2)];
+                    const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
                     createBet(playerName, 'ukupno iznudjenih', 'faulova 1+', baseOdds['faulovi-iznudjeni-1'], false);
                     createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]));
                     createBet(playerName, 'ukupno iznudjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]));
