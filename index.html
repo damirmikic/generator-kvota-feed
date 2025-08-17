@@ -545,6 +545,27 @@
         const probOver = (lambda, k) => 1 - poissonCDF(lambda, k);
         const probUnder = (lambda, k) => poissonCDF(lambda, k - 1);
         
+        // Funkcija za izračunavanje verovatnoće da igrač postigne gol i njegov tim pobedi
+        const scoreAndWin = (muTeam, muOpponent, playerLambda, maxGoals = 10) => {
+            let s = playerLambda / muTeam; // Udeo igrača u golovima tima
+            let prob = 0;
+            
+            for (let gTeam = 0; gTeam <= maxGoals; gTeam++) {
+                let pTeam = poissonPMF(muTeam, gTeam);
+                for (let gOpponent = 0; gOpponent <= maxGoals; gOpponent++) {
+                    let pOpponent = poissonPMF(muOpponent, gOpponent);
+                    
+                    if (gTeam > gOpponent) {
+                        // Verovatnoća da igrač da gol ako tim postigne gTeam golova
+                        let pPlayer = 1 - Math.pow(1 - s, gTeam);
+                        prob += pTeam * pOpponent * pPlayer;
+                    }
+                }
+            }
+            
+            return prob;
+        };
+        
         const get24hTime = (date = new Date()) => {
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
@@ -857,7 +878,9 @@
                         
                         if (teamLambda > 0 && teamWinOdd > 1) {
                             const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
-                            const probScoresAndWins = (1 / (playerLambda / teamLambda));
+                            const opponentSide = teamSide === 'home' ? 'away' : 'home';
+                            const opponentLambda = opponentSide === 'home' ? event.lambdaHome : event.lambdaAway;
+                            const probScoresAndWins = scoreAndWin(teamLambda, opponentLambda, playerLambda, 15);
                             const teamName = teamSide === 'home' ? event.home.name : event.away.name;
                             createBet(playerName, 'daje gol i', `${teamName} pobedjuje`, probToOdd(probScoresAndWins), true);
                         }
@@ -866,24 +889,24 @@
                 if (baseOdds['sutevi-okvir-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['sutevi-okvir-1']));
                     const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-                    createBet(playerName, 'ukupno suteva', 'u okvir gola 1+', baseOdds['sutevi-okvir-1'], false);
+                    createBet(playerName, 'ukupno suteva', 'u okvir gola 1+', baseOdds['sutevi-okvir-1'], true);
                     createBet(playerName, 'ukupno suteva', 'u okvir gola 2+', probToOdd(1 - p[0] - p[1]));
                     createBet(playerName, 'ukupno suteva', 'u okvir gola 3+', probToOdd(1 - p[0] - p[1] - p[2]));
                 }
                 if (baseOdds['faulovi-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-1']));
                     const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-                    createBet(playerName, 'ukupno nacinjenih', 'faulova 1+', baseOdds['faulovi-1'], false);
+                    createBet(playerName, 'ukupno nacinjenih', 'faulova 1+', baseOdds['faulovi-1'], true);
                     createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]));
                     createBet(playerName, 'ukupno nacinjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]));
                 }
                 if (baseOdds['zuti-karton'] > 0) {
-                    createBet(playerName, 'dobija', 'karton', baseOdds['zuti-karton'], false);
+                    createBet(playerName, 'dobija', 'karton', baseOdds['zuti-karton'], true);
                 }
                 if (baseOdds['faulovi-iznudjeni-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-iznudjeni-1']));
                     const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-                    createBet(playerName, 'ukupno iznudjenih', 'faulova 1+', baseOdds['faulovi-iznudjeni-1'], false);
+                    createBet(playerName, 'ukupno iznudjenih', 'faulova 1+', baseOdds['faulovi-iznudjeni-1'], true);
                     createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]));
                     createBet(playerName, 'ukupno iznudjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]));
                 }
@@ -893,7 +916,7 @@
                     if (line > 0) createBet(playerName, 'ukupno pasova', `${line}+`, probToOdd(1 - poissonCDF(lambda, line - 1)));
                 }
                 if (baseOdds['asistencija'] > 0) {
-                    createBet(playerName, 'asistencija', '1+', baseOdds['asistencija'], false);
+                    createBet(playerName, 'asistencija', '1+', baseOdds['asistencija'], true);
                     if (baseOdds['daje-gol'] > 0) {
                         const prob_goal = oddToProb(baseOdds['daje-gol']);
                         const prob_assist = oddToProb(baseOdds['asistencija']);
@@ -912,7 +935,7 @@
                     }
 
                     if (threshold && oddValue > 0) {
-                        createBet(playerName, 'ukupno suteva', `${threshold}+`, oddValue, false);
+                        createBet(playerName, 'ukupno suteva', `${threshold}+`, oddValue, true);
                     }
                 });
             });
