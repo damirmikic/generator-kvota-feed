@@ -859,15 +859,32 @@
                 card.querySelectorAll('.player-base-odd').forEach(input => baseOdds[input.dataset.oddType] = parseFloat(input.value) || 0);
                 
                 if (baseOdds['daje-gol'] > 0) {
-                    const lambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
-                    const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
+                    const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
+                    const p_poisson = [poissonPMF(playerLambda, 0), poissonPMF(playerLambda, 1), poissonPMF(playerLambda, 2)];
+                    
+                    // Main goalscorer odd - no margin, as requested
                     createBet(playerName, 'daje', 'gol', baseOdds['daje-gol'], false);
-                    createBet(playerName, 'daje gol', 'do 10. min', probToOdd(1 - poissonPMF(lambda / 9, 0)));
-                    createBet(playerName, 'daje', '2+ golova', probToOdd(1 - p[0] - p[1]));
-                    createBet(playerName, 'daje', '3+ golova', probToOdd(1 - p[0] - p[1] - p[2]));
-                    createBet(playerName, 'daje gol', 'u 1. poluvremenu', probToOdd(1 - poissonPMF(lambda * 0.44, 0)));
-                    createBet(playerName, 'daje gol', 'u 2. poluvremenu', probToOdd(1 - poissonPMF(lambda * 0.56, 0)));
-                    createBet(playerName, 'daje gol', 'u oba pol.', probToOdd((1 - poissonPMF(lambda * 0.44, 0)) * (1 - poissonPMF(lambda * 0.56, 0))));
+                    
+                    createBet(playerName, 'daje gol', 'do 10. min', probToOdd(1 - poissonPMF(playerLambda / 9, 0)));
+                    createBet(playerName, 'daje', '2+ golova', probToOdd(1 - p_poisson[0] - p_poisson[1]));
+                    createBet(playerName, 'daje', '3+ golova', probToOdd(1 - p_poisson[0] - p_poisson[1] - p_poisson[2]));
+                    
+                    // UPDATED LOGIC for halves
+                    const lambda_1h = playerLambda * 0.44;
+                    const lambda_2h = playerLambda * 0.56;
+                    
+                    const prob_1h = 1 - poissonPMF(lambda_1h, 0);
+                    const prob_2h = 1 - poissonPMF(lambda_2h, 0);
+
+                    const odd_1h = probToOdd(prob_1h);
+                    const odd_2h = probToOdd(prob_2h);
+                    
+                    const odd_both_halves = (odd_1h && odd_2h) ? odd_1h * odd_2h : null;
+
+                    createBet(playerName, 'daje gol', 'u 1. poluvremenu', odd_1h);
+                    createBet(playerName, 'daje gol', 'u 2. poluvremenu', odd_2h);
+                    createBet(playerName, 'daje gol', 'u oba pol.', odd_both_halves);
+                    
                     createBet(playerName, 'daje', 'prvi gol', baseOdds['daje-gol'] * 2.6);
                     createBet(playerName, 'daje', 'zadnji gol', baseOdds['daje-gol'] * 2.6);
                     
@@ -877,7 +894,6 @@
                         const teamWinOdd = parseFloat($(`#team-select option[value="${teamSide}"]`).dataset.odd) || 0;
                         
                         if (teamLambda > 0 && teamWinOdd > 1) {
-                            const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
                             const opponentSide = teamSide === 'home' ? 'away' : 'home';
                             const opponentLambda = opponentSide === 'home' ? event.lambdaHome : event.lambdaAway;
                             const probScoresAndWins = scoreAndWin(teamLambda, opponentLambda, playerLambda, 15);
@@ -1196,7 +1212,7 @@
             const indicator = $('#status-indicator');
             const statusText = $('#status-text');
             try {
-                const response = await fetch('/player_data/merged_player_stats.json'); 
+                const response = await fetch('./merged_player_stats.json'); 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 allFbrefStats = await response.json();
                 indicator.classList.replace('bg-red-500', 'bg-green-500');
@@ -1211,7 +1227,7 @@
                 indicator.title = "Greška: Nije moguće učitati 'merged_player_stats.json'.";
                 statusText.textContent = 'Greška učitavanja baze';
                 statusText.className = 'text-red-600';
-                alert("Nije moguće učitati lokalnu bazu podataka. Proverite da li fajl 'player_data/merged_player_stats.json' postoji.");
+                alert("Nije moguće učitati lokalnu bazu podataka. Proverite da li fajl 'merged_player_stats.json' postoji.");
             }
         };
         
@@ -1221,7 +1237,7 @@
             fetchApiBtn.disabled = true;
             apiStatus.textContent = 'Preuzimanje podataka sa API-ja...';
             
-            const url = `/.netlify/functions/fetch-events`;
+            const url = `./fetch-events.js`;
 
             try {
                 const response = await fetch(url);
