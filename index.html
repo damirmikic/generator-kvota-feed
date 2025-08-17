@@ -323,13 +323,12 @@
                 <!-- Players Tab Content -->
                 <div id="tab-players" class="tab-content active">
                     <form id="odds-form">
-                        <section class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-8">
+                        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-8">
                              <div class="input-group">
                                 <label for="team-select">Tim</label>
                                 <select id="team-select" disabled></select>
                             </div>
                             <div class="input-group"><label for="team-win-odd">Kvota na Pobedu</label><input type="number" id="team-win-odd" step="0.01" value="1.85"></div>
-                            <div class="input-group"><label for="correlation-factor" class="text-xs sm:text-sm">Faktor Kor. (Gol/Pobeda)</label><input type="number" id="correlation-factor" step="0.1" value="1.3"></div>
                             <div class="input-group"><label for="bookmaker-margin">Margina (%)</label><input type="number" id="bookmaker-margin" step="0.1" value="10"></div>
                         </section>
                         
@@ -367,6 +366,14 @@
                                 <div class="input-group">
                                     <label for="special-goals-lambda">Oč. Golova (λ)</label>
                                     <input type="number" id="special-goals-lambda" step="0.1" value="2.5" title="Očekivani ukupan broj golova na meču">
+                                </div>
+                                <div class="input-group">
+                                    <label for="special-goals-lambda-home">Oč. Golova Domaćin</label>
+                                    <input type="number" id="special-goals-lambda-home" step="0.1" value="1.4" readonly title="Očekivani broj golova za domaćina">
+                                </div>
+                                <div class="input-group">
+                                    <label for="special-goals-lambda-away">Oč. Golova Gost</label>
+                                    <input type="number" id="special-goals-lambda-away" step="0.1" value="1.1" readonly title="Očekivani broj golova za gosta">
                                 </div>
                                  <div class="input-group">
                                     <label for="special-corners-lambda">Oč. Kornera (λ)</label>
@@ -797,8 +804,7 @@
             let allResults = [];
             const playerCards = document.querySelectorAll('.player-card');
             const margin = parseFloat($('#bookmaker-margin').value) || 0;
-            const teamWinOdd = parseFloat($('#team-win-odd').value) || 0;
-            const correlationFactor = parseFloat($('#correlation-factor').value) || 1.0;
+            
             const eventId = eventSelect.value;
             const event = apiEvents.find(e => e.id == eventId);
 
@@ -837,10 +843,13 @@
                     if (event && event.lambdaHome && event.lambdaAway) {
                         const teamSide = card.dataset.teamSide;
                         const teamLambda = teamSide === 'home' ? event.lambdaHome : event.lambdaAway;
-                        if (teamLambda > 0) {
+                        const teamWinOdd = parseFloat($(`#team-select option[value="${teamSide}"]`).dataset.odd) || 0;
+                        
+                        if (teamLambda > 0 && teamWinOdd > 1) {
                             const playerLambda = getLambdaFromProb(oddToProb(baseOdds['daje-gol']));
-                            const probScoresAndWins = playerLambda / teamLambda * oddToProb(teamWinOdd);
-                            createBet(playerName, 'daje gol', 'i tim pobedjuje', probToOdd(probScoresAndWins), true);
+                            const probScoresAndWins = (playerLambda / teamLambda) * oddToProb(teamWinOdd);
+                            const teamName = teamSide === 'home' ? event.home.name : event.away.name;
+                            createBet(playerName, 'daje gol i', `${teamName} pobedjuje`, probToOdd(probScoresAndWins), true);
                         }
                     }
                 }
@@ -1419,6 +1428,8 @@
             const { lambdaHome, lambdaAway } = calculateTeamLambdas(event);
             event.lambdaHome = lambdaHome;
             event.lambdaAway = lambdaAway;
+            setLambdaInput($('#special-goals-lambda-home'), lambdaHome, (goalsLambda || 2.5) / 2);
+            setLambdaInput($('#special-goals-lambda-away'), lambdaAway, (goalsLambda || 2.5) / 2);
 
             const totalCorners = parseFloat($('#special-corners-lambda').value);
             const { lambdaHome: cornerLambdaHome, lambdaAway: cornerLambdaAway } = calculateTeamCornerLambdas(event, totalCorners);
