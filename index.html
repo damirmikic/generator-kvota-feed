@@ -1212,7 +1212,7 @@
             const indicator = $('#status-indicator');
             const statusText = $('#status-text');
             try {
-                const response = await fetch('./merged_player_stats.json'); 
+                const response = await fetch('/merged_player_stats.json'); 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 allFbrefStats = await response.json();
                 indicator.classList.replace('bg-red-500', 'bg-green-500');
@@ -1237,7 +1237,7 @@
             fetchApiBtn.disabled = true;
             apiStatus.textContent = 'Preuzimanje podataka sa API-ja...';
             
-            const url = `./fetch-events.js`;
+            const url = `/.netlify/functions/fetch-events`;
 
             try {
                 const response = await fetch(url);
