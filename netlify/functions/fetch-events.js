@@ -16,7 +16,7 @@ exports.handler = async (event, context) => {
   
   // Set up the time window for the API call (from now to 48 hours in the future)
   const from = Math.floor(Date.now() / 1000);
-  const to = from + (72 * 3600); // 72 hours from now
+  const to = from + (48 * 3600); // 48 hours from now
 
   // List of specific league keys to fetch
   const leagueKeys = [
