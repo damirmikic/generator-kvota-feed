@@ -1212,7 +1212,7 @@
             const indicator = $('#status-indicator');
             const statusText = $('#status-text');
             try {
-                const response = await fetch('/merged_player_stats.json'); 
+                const response = await fetch('/player_data/merged_player_stats.json'); 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 allFbrefStats = await response.json();
                 indicator.classList.replace('bg-red-500', 'bg-green-500');
@@ -1227,7 +1227,7 @@
                 indicator.title = "Greška: Nije moguće učitati 'merged_player_stats.json'.";
                 statusText.textContent = 'Greška učitavanja baze';
                 statusText.className = 'text-red-600';
-                alert("Nije moguće učitati lokalnu bazu podataka. Proverite da li fajl 'merged_player_stats.json' postoji.");
+                alert("Nije moguće učitati lokalnu bazu podataka. Proverite da li fajl 'player_data/merged_player_stats.json' postoji.");
             }
         };
         
