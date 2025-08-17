@@ -520,15 +520,25 @@
         let currentTab = 'players';
 
         // --- Math & Stat Helpers ---
-        const factorial = n => { if (n < 0) return NaN; if (n === 0) return 1; let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; };
-        const poissonProbability = (l, k) => (l < 0) ? 0 : (Math.pow(l, k) * Math.exp(-l)) / factorial(k);
+        let factCache = [1];
+        const factorial = n => {
+            if (n < 0) return NaN;
+            if (factCache[n] !== undefined) return factCache[n];
+            let val = factCache[factCache.length - 1];
+            for (let i = factCache.length; i <= n; i++) {
+                val *= i;
+                factCache[i] = val;
+            }
+            return val;
+        };
+        const poissonPMF = (mu, k) => Math.exp(-mu) * Math.pow(mu, k) / factorial(k);
         const probToOdd = p => (p <= 0 || p >= 1) ? null : 1 / p;
         const oddToProb = o => (o <= 1) ? 1 : 1 / o;
         const getLambdaFromProb = p => (p <= 0 || p >= 1) ? 0 : -Math.log(1 - p);
         const poissonCDF = (lambda, k) => {
             let sum = 0;
             for (let i = 0; i <= k; i++) {
-                sum += poissonProbability(lambda, i);
+                sum += poissonPMF(lambda, i);
             }
             return sum;
         };
@@ -1340,15 +1350,46 @@
                 return { lambdaHome: null, lambdaAway: null };
             }
 
-            const homeProb = oddToProb(matchOddsMarket.find(s => s.outcome === 'home')?.price);
-            const awayProb = oddToProb(matchOddsMarket.find(s => s.outcome === 'away')?.price);
+            const homeOdd = matchOddsMarket.find(s => s.outcome === 'home')?.price;
+            const drawOdd = matchOddsMarket.find(s => s.outcome === 'draw')?.price;
+            const awayOdd = matchOddsMarket.find(s => s.outcome === 'away')?.price;
 
-            if (!homeProb || !awayProb) return { lambdaHome: null, lambdaAway: null };
+            if (!homeOdd || !drawOdd || !awayOdd) return { lambdaHome: null, lambdaAway: null };
+            
+            const normalizeProb = (oHome, oDraw, oAway) => {
+                let pH_raw = 1 / oHome;
+                let pD_raw = 1 / oDraw;
+                let pA_raw = 1 / oAway;
+                let S = pH_raw + pD_raw + pA_raw;
+                return { pH: pH_raw / S, pD: pD_raw / S, pA: pA_raw / S };
+            };
+            
+            const homeWinProb = (muH, muA) => {
+                let prob = 0;
+                let maxGoals = Math.ceil(muH + muA + 10);
+                for (let i = 1; i <= maxGoals; i++) {
+                    prob += poissonPMF(muH, i) * poissonCDF(muA, i - 1);
+                }
+                return prob;
+            };
 
-            const lambdaHome = totalGoalsLambda * (homeProb / (homeProb + awayProb));
-            const lambdaAway = totalGoalsLambda * (awayProb / (homeProb + awayProb));
+            let { pH } = normalizeProb(homeOdd, drawOdd, awayOdd);
+            let a = 1e-6;
+            let b = totalGoalsLambda - 1e-6;
+            if (a >= b) return { lambdaHome: totalGoalsLambda / 2, lambdaAway: totalGoalsLambda / 2 };
 
-            return { lambdaHome, lambdaAway };
+            let mid, fmid;
+            while (b - a > 1e-6) {
+                mid = (a + b) / 2;
+                let muH = mid;
+                let muA = totalGoalsLambda - muH;
+                fmid = homeWinProb(muH, muA) - pH;
+                if (fmid > 0) b = mid;
+                else a = mid;
+            }
+            let muH = (a + b) / 2;
+            let muA = totalGoalsLambda - muH;
+            return { lambdaHome: muH, lambdaAway: muA };
         };
 
         const populateMatchData = (eventId) => {
