@@ -1439,6 +1439,23 @@
                 $(`#tab-${tab}`).classList.add('active');
                 $('#generate-btn-text').textContent = tab === 'players' ? 'Generiši Kvote' : 'Generiši Specijal Kvote';
                 previewSection.classList.add('hidden');
+
+                const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
+                if (eventSelectOption && eventSelect.value) {
+                    if (tab === 'specials') {
+                        $('#match-name').value = eventSelectOption.textContent;
+                    } else {
+                        const teamFilterValue = teamFilter.value;
+                        const teamSelectOption = teamSelect.options[teamSelect.selectedIndex];
+                        if (teamFilterValue) {
+                            $('#match-name').value = teamFilterValue;
+                        } else if (teamSelectOption && teamSelect.value !== 'all') {
+                            $('#match-name').value = teamSelectOption.textContent;
+                        } else {
+                            $('#match-name').value = eventSelectOption.textContent;
+                        }
+                    }
+                }
             });
         });
 
@@ -1451,6 +1468,15 @@
             const odd = selectedOption.dataset.odd;
             if (odd) $('#team-win-odd').value = odd;
             
+            if (currentTab === 'players') {
+                if (e.target.value === 'all' || !selectedOption.textContent) {
+                    const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
+                    $('#match-name').value = eventSelectOption.textContent || '';
+                } else {
+                    $('#match-name').value = selectedOption.textContent;
+                }
+            }
+
             const selectedTeamSide = e.target.value;
             const playersToDisplay = selectedTeamSide === 'all' 
                 ? availableApiPlayers 
@@ -1527,8 +1553,16 @@
         });
         
         on(teamFilter, 'change', () => {
+             if (currentTab !== 'players') return;
             const selectedTeam = teamFilter.value;
-            if (selectedTeam) $('#match-name').value = selectedTeam;
+            if (selectedTeam) {
+                $('#match-name').value = selectedTeam;
+            } else {
+                const eventSelectOption = eventSelect.options[eventSelect.selectedIndex];
+                if (eventSelectOption && eventSelect.value) {
+                    $('#match-name').value = eventSelectOption.textContent;
+                }
+            }
         });
         
         on(toggleApiDataBtn, 'click', () => {
