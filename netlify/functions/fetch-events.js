@@ -30,20 +30,10 @@ exports.handler = async (event, context) => {
     'soccer-spain-laliga'
   ];
 
-  // Define all necessary markets
-  const markets = [
-    'soccer.match_odds',
-    'soccer.total_goals',
-    'soccer.anytime_goalscorer',
-    'soccer.both_teams_to_score',
-    'soccer.total_corners',
-    'soccer.corner_handicap'
-  ].map(m => `markets=${m}`).join('&');
-
   try {
     // Create a fetch promise for each league
     const fetchPromises = leagueKeys.map(key => {
-      const API_URL = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/${key}?from=${from}&to=${to}&players=true&limit=100&${markets}`;
+      const API_URL = `https://sports-api.cloudbet.com/pub/v2/odds/competitions/${key}?from=${from}&to=${to}&players=true&limit=100`;
       return fetch(API_URL, {
         headers: { 'X-API-Key': API_KEY }
       });
