@@ -1224,7 +1224,7 @@
                 apiPlayerAdder.classList.add('hidden');
                 return;
             }
-            players.sort((a,b) => a.name.localeCompare(b.name)).forEach(player => {
+            players.sort((a, b) => a.goalscorerOdd - b.goalscorerOdd).forEach(player => {
                 const option = document.createElement('option');
                 option.value = player.name;
                 option.textContent = `${player.name} (${player.goalscorerOdd})`;
@@ -1294,6 +1294,10 @@
                         bestLine = lineName;
                     }
                 }
+            }
+            
+            if(!bestLine && uniqueLines.length > 0) {
+                bestLine = uniqueLines[0];
             }
 
             if (bestLine) {
