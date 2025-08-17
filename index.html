@@ -889,26 +889,50 @@
                 if (baseOdds['sutevi-okvir-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['sutevi-okvir-1']));
                     const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-                    createBet(playerName, 'ukupno suteva', 'u okvir gola 1+', baseOdds['sutevi-okvir-1'], true);
-                    createBet(playerName, 'ukupno suteva', 'u okvir gola 2+', probToOdd(1 - p[0] - p[1]));
-                    createBet(playerName, 'ukupno suteva', 'u okvir gola 3+', probToOdd(1 - p[0] - p[1] - p[2]));
+                    createBet(playerName, 'ukupno suteva', 'u okvir gola 1+', baseOdds['sutevi-okvir-1'], false);
+                    createBet(playerName, 'ukupno suteva', 'u okvir gola 2+', probToOdd(1 - p[0] - p[1]), true);
+                    createBet(playerName, 'ukupno suteva', 'u okvir gola 3+', probToOdd(1 - p[0] - p[1] - p[2]), true);
                 }
                 if (baseOdds['faulovi-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-1']));
                     const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-                    createBet(playerName, 'ukupno nacinjenih', 'faulova 1+', baseOdds['faulovi-1'], true);
-                    createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]));
-                    createBet(playerName, 'ukupno nacinjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]));
+                    const baseOdd = baseOdds['faulovi-1'];
+                    
+                    if (baseOdd < 1.3) {
+                        // Ako je kvota za 1+ ispod 1.3, prikazujemo 2+ i 3+
+                        createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
+                        // Za 3+ koristimo marginu od 20%
+                        const originalMargin = margin;
+                        margin = 20;
+                        createBet(playerName, 'ukupno nacinjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]), true);
+                        margin = originalMargin;
+                    } else {
+                        // Inače prikazujemo 1+ i 2+
+                        createBet(playerName, 'ukupno nacinjenih', 'faulova 1+', baseOdd, false);
+                        createBet(playerName, 'ukupno nacinjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
+                    }
                 }
                 if (baseOdds['zuti-karton'] > 0) {
-                    createBet(playerName, 'dobija', 'karton', baseOdds['zuti-karton'], true);
+                    createBet(playerName, 'dobija', 'karton', baseOdds['zuti-karton'], false);
                 }
                 if (baseOdds['faulovi-iznudjeni-1'] > 0) {
                     const lambda = getLambdaFromProb(oddToProb(baseOdds['faulovi-iznudjeni-1']));
                     const p = [poissonPMF(lambda, 0), poissonPMF(lambda, 1), poissonPMF(lambda, 2)];
-                    createBet(playerName, 'ukupno iznudjenih', 'faulova 1+', baseOdds['faulovi-iznudjeni-1'], true);
-                    createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]));
-                    createBet(playerName, 'ukupno iznudjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]));
+                    const baseOdd = baseOdds['faulovi-iznudjeni-1'];
+                    
+                    if (baseOdd < 1.3) {
+                        // Ako je kvota za 1+ ispod 1.3, prikazujemo 2+ i 3+
+                        createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
+                        // Za 3+ koristimo marginu od 20%
+                        const originalMargin = margin;
+                        margin = 20;
+                        createBet(playerName, 'ukupno iznudjenih', 'faulova 3+', probToOdd(1 - p[0] - p[1] - p[2]), true);
+                        margin = originalMargin;
+                    } else {
+                        // Inače prikazujemo 1+ i 2+
+                        createBet(playerName, 'ukupno iznudjenih', 'faulova 1+', baseOdd, false);
+                        createBet(playerName, 'ukupno iznudjenih', 'faulova 2+', probToOdd(1 - p[0] - p[1]), true);
+                    }
                 }
                 if (baseOdds['pasovi-lambda'] > 0) {
                     const lambda = baseOdds['pasovi-lambda'];
@@ -916,7 +940,7 @@
                     if (line > 0) createBet(playerName, 'ukupno pasova', `${line}+`, probToOdd(1 - poissonCDF(lambda, line - 1)));
                 }
                 if (baseOdds['asistencija'] > 0) {
-                    createBet(playerName, 'asistencija', '1+', baseOdds['asistencija'], true);
+                    createBet(playerName, 'asistencija', '1+', baseOdds['asistencija'], false);
                     if (baseOdds['daje-gol'] > 0) {
                         const prob_goal = oddToProb(baseOdds['daje-gol']);
                         const prob_assist = oddToProb(baseOdds['asistencija']);
@@ -935,7 +959,7 @@
                     }
 
                     if (threshold && oddValue > 0) {
-                        createBet(playerName, 'ukupno suteva', `${threshold}+`, oddValue, true);
+                        createBet(playerName, 'ukupno suteva', `${threshold}+`, oddValue, false);
                     }
                 });
             });
