@@ -420,10 +420,10 @@
                         <!-- New Combo Bet Section -->
                         <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                             <h3 class="font-bold text-lg text-slate-800 mb-4">Kombinovane Opklade (Igrač + Meč)</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                                 <div class="input-group">
-                                    <label for="combo-player-name">Ime Igrača</label>
-                                    <input type="text" id="combo-player-name" placeholder="Unesite ime igrača iz liste">
+                                    <label for="combo-player-select">Ime Igrača</label>
+                                    <select id="combo-player-select"></select>
                                 </div>
                                 <div class="input-group">
                                     <label for="combo-stat-1">Statistika 1 (Dropdown 1)</label>
@@ -433,7 +433,11 @@
                                     <label for="combo-stat-2">Statistika 2 (Dropdown 2)</label>
                                     <select id="combo-stat-2"></select>
                                 </div>
-                                <div class="md:col-span-3">
+                                <div class="input-group">
+                                    <label for="combo-threshold">Granica</label>
+                                    <input type="number" id="combo-threshold" step="0.5" placeholder="npr. 2.5">
+                                </div>
+                                <div class="md:col-span-4">
                                     <button type="button" id="add-combo-bet-btn" class="action-btn primary">Dodaj Kombinovanu Opkladu</button>
                                 </div>
                             </div>
@@ -1346,6 +1350,7 @@
         
         const populateApiPlayerSelect = (players) => {
             apiPlayerSelect.innerHTML = '<option value="">-- Izaberi igrača --</option>';
+             $('#combo-player-select').innerHTML = '<option value="">-- Izaberi igrača --</option>';
             if (!players || players.length === 0) {
                 apiPlayerAdder.classList.add('hidden');
                 return;
@@ -1356,7 +1361,8 @@
                 option.textContent = `${player.name} (${player.goalscorerOdd})`;
                 option.dataset.odd = player.goalscorerOdd;
                 option.dataset.teamSide = player.teamSide;
-                apiPlayerSelect.appendChild(option);
+                apiPlayerSelect.appendChild(option.cloneNode(true));
+                $('#combo-player-select').appendChild(option);
             });
             apiPlayerAdder.classList.remove('hidden');
         };
@@ -1873,16 +1879,17 @@
         // --- Combo Bet Logic ---
         const comboOptions = {
             player: [
-                { text: 'Daje gol', value: 'daje-gol' },
-                { text: 'Daje 2+ golova', value: 'daje-2-plus-golova' },
-                { text: 'Daje 3+ golova', value: 'daje-3-plus-golova' },
-                { text: 'Šutira 1+ u okvir', value: 'sutevi-okvir-1' },
+                { text: 'Daje gol', value: 'daje-gol', type: 'prob' },
+                { text: 'Daje 2+ golova', value: 'daje-2-plus-golova', type: 'prob' },
+                { text: 'Daje 3+ golova', value: 'daje-3-plus-golova', type: 'prob' },
+                { text: 'Šutevi u okvir', value: 'sot', type: 'lambda', stat: 'SoT_90' },
+                { text: 'Ukupno šuteva', value: 'shots', type: 'lambda', stat: 'Sh_90' },
             ],
             match: [
-                { text: 'Oba tima daju gol', value: 'gg' },
-                { text: '3+ golova na meču', value: '3-plus-goals' },
-                { text: '4+ kartona na meču', value: '4-plus-cards' },
-                { text: '10+ kornera na meču', value: '10-plus-corners' },
+                { text: 'Ukupno golova', value: 'total-goals', type: 'lambda', lambdaKey: 'special-goals-lambda' },
+                { text: 'Ukupno kornera', value: 'total-corners', type: 'lambda', lambdaKey: 'special-corners-lambda' },
+                { text: 'Ukupno kartona', value: 'total-cards', type: 'lambda', lambdaKey: 'special-cards-lambda' },
+                { text: 'Oba tima daju gol', value: 'gg', type: 'prob' }
             ]
         };
 
@@ -1910,12 +1917,13 @@
         }
         
         on(addComboBetBtn, 'click', () => {
-            const playerName = $('#combo-player-name').value;
+            const playerName = $('#combo-player-select').value;
             const stat1_full = $('#combo-stat-1').value;
             const stat2_full = $('#combo-stat-2').value;
+            const threshold = parseFloat($('#combo-threshold').value);
 
             if ((stat1_full.startsWith('player:') || stat2_full.startsWith('player:')) && !playerName) {
-                alert('Molimo unesite ime igrača za kombinovanu opkladu.');
+                alert('Molimo izaberite igrača za kombinovanu opkladu.');
                 return;
             }
             if (!stat1_full || !stat2_full) {
@@ -1923,37 +1931,56 @@
                 return;
             }
 
-            // Pre-calculate all base probabilities if not already done
-            if (Object.keys(calculatedProbs).length === 0) {
-                 calculatePlayerOdds();
-                 calculateSpecialOdds();
-            }
+            const getProbAndText = (fullKey, pName, thresh) => {
+                const [type, key] = fullKey.split(':');
+                const options = comboOptions[type];
+                const option = options.find(o => o.value === key);
 
-            const [type1, key1] = stat1_full.split(':');
-            const [type2, key2] = stat2_full.split(':');
+                if (!option) return { prob: undefined, text: '' };
 
-            const prob1 = (type1 === 'player') ? calculatedProbs[playerName]?.[key1] : calculatedProbs.match?.[key1];
-            const prob2 = (type2 === 'player') ? calculatedProbs[playerName]?.[key2] : calculatedProbs.match?.[key2];
+                let prob;
+                let text = option.text;
 
-            if (prob1 === undefined || prob2 === undefined) {
-                alert('Nije moguće izračunati kvotu. Proverite da li je igrač u listi i da li su generisane osnovne kvote.');
+                if (option.type === 'prob') {
+                    prob = (type === 'player') ? calculatedProbs[pName]?.[key] : calculatedProbs.match?.[key];
+                } else if (option.type === 'lambda') {
+                    if (isNaN(thresh)) {
+                        alert(`Molimo unesite validnu granicu za "${option.text}".`);
+                        return { prob: undefined, text: '' };
+                    }
+                    let lambda;
+                    if (type === 'player') {
+                        const playerStat = allFbrefStats.find(p => p.Player === pName);
+                        if (!playerStat) return { prob: undefined, text: '' };
+                        lambda = playerStat[option.stat] || 0;
+                    } else { // match
+                        lambda = parseFloat($(`#${option.lambdaKey}`).value) || 0;
+                    }
+                    prob = probOver(lambda, thresh - 0.1); // -0.1 to make it over, e.g., over 2.5
+                    text = `${thresh}+ ${option.text}`;
+                }
+                return { prob, text };
+            };
+
+            const res1 = getProbAndText(stat1_full, playerName, threshold);
+            const res2 = getProbAndText(stat2_full, playerName, threshold);
+
+            if (res1.prob === undefined || res2.prob === undefined) {
+                alert('Nije moguće izračunati kvotu. Proverite da li su svi podaci uneti i da li je igrač u lokalnoj bazi.');
                 return;
             }
 
-            const combinedProb = calculateCorrelatedProbability(prob1, prob2);
+            const combinedProb = calculateCorrelatedProbability(res1.prob, res2.prob);
             const finalOdd = probToOdd(combinedProb);
             const margin = parseFloat($('#bookmaker-margin').value) || 0;
             const marginedOdd = applyMarginToOdd(finalOdd, margin);
             
-            const text1 = $(`#combo-stat-1 option[value="${stat1_full}"]`).textContent;
-            const text2 = $(`#combo-stat-2 option[value="${stat2_full}"]`).textContent;
-
             const row = previewTableBody.insertRow();
             row.className = 'bg-white even:bg-slate-50';
             row.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">${playerName || 'Specijal'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${text1}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${text2}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${res1.text}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${res2.text}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
                     <input type="number" class="editable-odd" step="0.01" value="${formatOdd(marginedOdd)}" />
                 </td>
