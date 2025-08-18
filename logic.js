@@ -587,12 +587,12 @@ const calculateSpecialOdds = () => {
     createSpecialBet('Gol u nadoknadi', '1. pol.', 1 - Math.pow(10, -lambdaPerMin * 3));
     createSpecialBet('Gol u nadoknadi', '2. pol.', 1 - Math.pow(10, -lambdaPerMin * 5));
     createSpecialBet('Sudija gleda VAR', '', 0.4);
-    createSpecialBet('Izmena postize gol', '', 0.2);
+    createSpecialBet('Izmena postize gol', '', 1/(goalsLambda*0.15));
     createSpecialBet('Precka ili stativa', 'na mecu', 0.5);
-    createSpecialBet('Gol iz slobodnog udarca', '', 0.08);
-    createSpecialBet('Gol izvan 16m', '', 0.2);
+    createSpecialBet('Gol iz slobodnog udarca', '', 1/(goalsLambda*0.04));
+    createSpecialBet('Gol izvan 16m', '', 1/(goalsLambda*0.11));
     createSpecialBet('Dosudjen penal', 'za oba tima', (p_penal/2) * (p_penal/2));
-    createSpecialBet('Gol glavom na mecu', '', 0.28);
+    createSpecialBet('Gol glavom na mecu', '', 1/(goalsLambda*0.17));
 
     return results;
 };
