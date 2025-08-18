@@ -420,24 +420,34 @@
                         <!-- New Combo Bet Section -->
                         <section class="mb-8 p-6 bg-slate-50 border border-slate-200 rounded-lg">
                             <h3 class="font-bold text-lg text-slate-800 mb-4">Kombinovane Opklade (Igrač + Meč)</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
                                 <div class="input-group">
-                                    <label for="combo-player-select">Ime Igrača</label>
+                                    <label for="combo-player-select">Igrač</label>
                                     <select id="combo-player-select"></select>
                                 </div>
                                 <div class="input-group">
-                                    <label for="combo-stat-1">Statistika 1 (Dropdown 1)</label>
+                                    <label for="combo-player-odd">Kvota igrača (opciono)</label>
+                                    <input type="number" id="combo-player-odd" step="0.01" placeholder="Npr. 2.15">
+                                </div>
+                                <div></div>
+                                <div class="input-group">
+                                    <label for="combo-stat-1">Statistika 1</label>
                                     <select id="combo-stat-1"></select>
                                 </div>
                                 <div class="input-group">
-                                    <label for="combo-stat-2">Statistika 2 (Dropdown 2)</label>
+                                    <label for="combo-threshold-1">Granica 1</label>
+                                    <input type="number" id="combo-threshold-1" step="0.5" placeholder="npr. 0.5">
+                                </div>
+                                <div></div>
+                                 <div class="input-group">
+                                    <label for="combo-stat-2">Statistika 2</label>
                                     <select id="combo-stat-2"></select>
                                 </div>
                                 <div class="input-group">
-                                    <label for="combo-threshold">Granica</label>
-                                    <input type="number" id="combo-threshold" step="0.5" placeholder="npr. 2.5">
+                                    <label for="combo-threshold-2">Granica 2</label>
+                                    <input type="number" id="combo-threshold-2" step="0.5" placeholder="npr. 2.5">
                                 </div>
-                                <div class="md:col-span-4">
+                                <div class="lg:col-span-3">
                                     <button type="button" id="add-combo-bet-btn" class="action-btn primary">Dodaj Kombinovanu Opkladu</button>
                                 </div>
                             </div>
@@ -1884,6 +1894,9 @@
                 { text: 'Daje 3+ golova', value: 'daje-3-plus-golova', type: 'prob' },
                 { text: 'Šutevi u okvir', value: 'sot', type: 'lambda', stat: 'SoT_90' },
                 { text: 'Ukupno šuteva', value: 'shots', type: 'lambda', stat: 'Sh_90' },
+                { text: 'Broj pasova', value: 'passes', type: 'lambda', stat: 'Pass_Att_90' },
+                { text: 'Dobija žuti karton', value: 'yellow-card', type: 'prob' },
+                { text: 'Načinjeni faulovi', value: 'fouls-committed', type: 'lambda', stat: 'Fls_90' }
             ],
             match: [
                 { text: 'Ukupno golova', value: 'total-goals', type: 'lambda', lambdaKey: 'special-goals-lambda' },
@@ -1918,9 +1931,11 @@
         
         on(addComboBetBtn, 'click', () => {
             const playerName = $('#combo-player-select').value;
+            const playerOdd = parseFloat($('#combo-player-odd').value);
             const stat1_full = $('#combo-stat-1').value;
             const stat2_full = $('#combo-stat-2').value;
-            const threshold = parseFloat($('#combo-threshold').value);
+            const threshold1 = parseFloat($('#combo-threshold-1').value);
+            const threshold2 = parseFloat($('#combo-threshold-2').value);
 
             if ((stat1_full.startsWith('player:') || stat2_full.startsWith('player:')) && !playerName) {
                 alert('Molimo izaberite igrača za kombinovanu opkladu.');
@@ -1931,7 +1946,7 @@
                 return;
             }
 
-            const getProbAndText = (fullKey, pName, thresh) => {
+            const getProbAndText = (fullKey, pName, thresh, pOdd) => {
                 const [type, key] = fullKey.split(':');
                 const options = comboOptions[type];
                 const option = options.find(o => o.value === key);
@@ -1942,7 +1957,11 @@
                 let text = option.text;
 
                 if (option.type === 'prob') {
-                    prob = (type === 'player') ? calculatedProbs[pName]?.[key] : calculatedProbs.match?.[key];
+                    if (type === 'player' && pOdd > 0) {
+                        prob = oddToProb(pOdd);
+                    } else {
+                        prob = (type === 'player') ? calculatedProbs[pName]?.[key] : calculatedProbs.match?.[key];
+                    }
                 } else if (option.type === 'lambda') {
                     if (isNaN(thresh)) {
                         alert(`Molimo unesite validnu granicu za "${option.text}".`);
@@ -1950,9 +1969,13 @@
                     }
                     let lambda;
                     if (type === 'player') {
-                        const playerStat = allFbrefStats.find(p => p.Player === pName);
-                        if (!playerStat) return { prob: undefined, text: '' };
-                        lambda = playerStat[option.stat] || 0;
+                        if (pOdd > 0) {
+                            lambda = getLambdaFromProb(oddToProb(pOdd));
+                        } else {
+                             const playerStat = allFbrefStats.find(p => p.Player === pName);
+                            if (!playerStat) return { prob: undefined, text: '' };
+                            lambda = playerStat[option.stat] || 0;
+                        }
                     } else { // match
                         lambda = parseFloat($(`#${option.lambdaKey}`).value) || 0;
                     }
@@ -1962,8 +1985,8 @@
                 return { prob, text };
             };
 
-            const res1 = getProbAndText(stat1_full, playerName, threshold);
-            const res2 = getProbAndText(stat2_full, playerName, threshold);
+            const res1 = getProbAndText(stat1_full, playerName, threshold1, playerOdd);
+            const res2 = getProbAndText(stat2_full, playerName, threshold2, playerOdd);
 
             if (res1.prob === undefined || res2.prob === undefined) {
                 alert('Nije moguće izračunati kvotu. Proverite da li su svi podaci uneti i da li je igrač u lokalnoj bazi.');
