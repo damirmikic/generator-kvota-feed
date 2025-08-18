@@ -1,0 +1,7 @@
+[build]
+  # Direktorijum gde se nalaze vaši fajlovi za sajt.
+  # Pošto je sve u root-u, možemo ga ostaviti praznim ili staviti "."
+  publish = "." 
+  
+  # Direktorijum gde se nalaze vaše serverless funkcije.
+  functions = "netlify/functions"
